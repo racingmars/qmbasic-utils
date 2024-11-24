@@ -1,0 +1,60 @@
+* TERMSZ
+*
+* Determine the current terminal size and apply it using the TERM rows,cols
+* TCL command.
+*
+* Matthew Wilson, <mwilson@mattwilson.org>, Nov. 2024
+
+program TERMSZ
+
+$catalog TERMSZ global
+
+esc = char(27)
+
+* This sequence of VT-style commands will:
+*   1. ^[7         : save current cursor position.
+*   2. ^[[255;255H : move cursor to 255,255 (which in reality will stop at the
+*                    actual terminal bounds).
+*   3. ^[[6n       : ask what the current cursor position is.
+*   4. ^[8         : restore cursor to saved position.
+*
+crt esc : "7" : esc : "[255;255H" : esc : "[6n" : esc : "8"
+
+* We now expect a response from the terminal in the format:
+*   ^[[38;92R
+* where 38 is the number of rows and 92 is the number of columns.
+*
+* We will read one character at a time, exiting if there is no data after 1
+* second or if we get a character we don't expect.
+*
+i = keyin(1)
+if i # esc then
+  return
+end
+i = keyin(1)
+if i # "[" then
+  return
+end
+v = ""
+* Build up the vertical value string
+loop
+  i = keyin(1)
+  if i = ";" or i = "" then
+    exit
+  end
+  v := i
+repeat
+* Build up the horizontal value string
+h = ""
+loop
+  i = keyin(1)
+  if i = "R" or i = "" then
+    exit
+  end
+  h := i
+repeat
+
+* Now apply the size we have determined.
+execute "TERM " : h : "," : v
+
+end
